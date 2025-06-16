@@ -1,11 +1,12 @@
 const express = require('express');
+const { authenticateApiKey } = require('../middleware/authenticateApiKey');
 const miniatureController = require('../controllers/miniatureController');
 
 const router = express.Router();
 
-router.get('/', miniatureController.getAllMinis);                // Get all miniatures
-router.get('/:productCode', miniatureController.getMiniByCode);  // Get a miniature by product code
-router.post('/', miniatureController.createMini);                // Create a new miniature
+router.get('/', authenticateApiKey, miniatureController.getAllMinis);                // Get all miniatures
+router.get('/:productCode', authenticateApiKey, miniatureController.getMiniByCode);  // Get a miniature by product code
+router.post('/', authenticateApiKey, miniatureController.createMini);                // Create a new miniature
 
 
 module.exports = router;
