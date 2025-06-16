@@ -55,29 +55,60 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
 exports.getMiniByCode = catchAsync(async (req, res, next) => {
     const { productCode } = req.params;
 
-    try {
-        const miniature = await Miniature.findOne({ 'variants.productCode': productCode })
+    const miniature = await Miniature.findOne({ 'variants.productCode': productCode })
 
-        if (!miniature) {
-            return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
-        }
-
-        const variant = miniature.variants.find(v => v.productCode === productCode);
-
-        res.json({
-            productCode: variant.productCode,
-            name: `${miniature.baseName}, ${variant.name}`,
-            size: variant.size,
-            category: miniature.category,
-            thumbnail: variant.thumbnail,
-            images: variant.images,
-            cost: variant.price?.cost || 0,
-            wholesale: variant.price?.wholesale || 0,
-            msrp: variant.price?.msrp || 0
-        })
-    } catch (error) {
-        return next(new ApiError('Error fetching miniature by product code', 500));
+    if (!miniature) {
+        return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
     }
+
+    const variant = miniature.variants.find(v => v.productCode === productCode);
+
+    res.json({
+        productCode: variant.productCode,
+        name: `${miniature.baseName}, ${variant.name}`,
+        size: variant.size,
+        category: miniature.category,
+        thumbnail: variant.thumbnail,
+        images: variant.images,
+        cost: variant.price?.cost || 0,
+        wholesale: variant.price?.wholesale || 0,
+        msrp: variant.price?.msrp || 0
+    })
+});
+
+exports.updateMini = catchAsync(async (req, res, next) => {
+    const { productCode } = req.params;
+    const updates = req.body;
+
+    const miniature = await Miniature.findOne({ 'variants.productCode': productCode });
+    if (!miniature) {
+        return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
+    }
+
+    const variant = miniature.variants.find(v => v.productCode === productCode);
+
+    if (updates.size && !sizeCategories.includes(updates.size)) {
+        return next(new ApiError(`Invalid size: ${updates.size}`, 400));
+    }
+
+    Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'price' && typeof value === 'object') {
+            Object.entries(value).forEach(([pKey, pValue]) => {
+                if (['cost', 'wholesale', 'msrp'].includes(pKey) && typeof pValue === 'number') {
+                    variant.price[pKey] = pValue;
+                }
+            });
+        } else {
+            variant[key] = value;
+        }
+    });
+
+    await miniature.save();
+
+    res.status(200).json({
+        'message': 'Miniature updated successfully',
+        miniature
+    })
 });
 
 // Endpoint to create a new miniature
