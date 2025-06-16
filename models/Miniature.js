@@ -10,7 +10,7 @@ const variantSchema = new mongoose.Schema({
         enum: sizeCategories,
         validate: {
             validator: function (v) {
-                return Object.keys(sizeCategories).includes(v);
+                return sizeCategories.includes(v);
             },
             message: props => `${props.value} is not a valid size!`
         }
