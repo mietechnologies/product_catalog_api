@@ -24,6 +24,21 @@ const variantSchema = new mongoose.Schema({
         wholesale: { type: Number },
         msrp: { type: Number }
     }
+}, {
+    toJSON: {
+    transform: (doc, ret) => {
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    }
+    },
+    toObject: {
+        transform: (doc, ret) => {
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+        }
+    }
 });
 
 const miniatureSchema = new mongoose.Schema({
@@ -43,6 +58,20 @@ const miniatureSchema = new mongoose.Schema({
 }, {
     collection: 'Miniatures',
     timestamps: true,
+    toJSON: {
+    transform: (doc, ret) => {
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    }
+    },
+    toObject: {
+        transform: (doc, ret) => {
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+        }
+    }
 });
 
 module.exports = mongoose.model('Miniature', miniatureSchema);
