@@ -29,6 +29,11 @@ exports.generateNewKey = catchAsync(async (req, res, next) => {
         return next(new ApiError('Owner info is required.', 400));
     }
 
+    const existingOwnerKey = await ApiKey.countDocuments({ owner });
+    if (existingOwnerKey > 0) {
+        return next(new ApiError(`API Key for owner ${owner} already exists.`, 409));
+    }
+
     const key = await generateApiKey();
     const apiKey = new ApiKey({ key, owner });
     await apiKey.save();
@@ -36,5 +41,27 @@ exports.generateNewKey = catchAsync(async (req, res, next) => {
     res.status(201).json({ 
         message: 'API Key created',
         key
+    });
+});
+
+exports.getOwnersKey = catchAsync(async (req, res, next) => {
+    const { owner } = req.query;
+
+    if (!owner) {
+        return next(new ApiError('Owner info is required.', 400));
+    }
+
+    if (owner === 'master') {
+        return next(new ApiError('Cannot retrieve master key directly.', 403));
+    }
+
+    const apiKey = await ApiKey.findOne({ owner });
+    if (!apiKey) {
+        return next(new ApiError(`No API Key found for owner ${owner}.`, 404));
+    }
+
+    res.status(200).json({
+        message: `API Key for owner ${owner}`,
+        key: apiKey.key
     });
 });
