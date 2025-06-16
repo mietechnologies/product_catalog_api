@@ -33,6 +33,8 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
             }));
         })
 
+        allItems.sort((a, b) => a.productCode.localeCompare(b.productCode));
+
         const totalItems = allItems.length;
         const totalPages = Math.ceil(totalItems / limit);
         const startIndex = (page - 1) * limit;
