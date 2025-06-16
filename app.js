@@ -6,6 +6,7 @@ const app = express();
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const apiKeyRouter = require('./routers/apiKeyRouter');
+const miniatureRouter = require('./routers/miniatureRouter');
 // Import Routers
 
 // MIDDLEWARE
@@ -17,6 +18,7 @@ app.use(express.json());
 
 // ROUTES
 app.use('/api/keys', apiKeyRouter);
+app.use('/api/miniatures', miniatureRouter);
 
 app.use((req, res, next) => {
     next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
