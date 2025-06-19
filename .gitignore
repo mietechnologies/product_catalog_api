@@ -178,4 +178,5 @@ dist
 
 # All ENV files
 
-*.env
+configs/config.env
+.env
