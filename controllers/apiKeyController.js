@@ -26,7 +26,7 @@ exports.generateNewKey = catchAsync(async (req, res, next) => {
     // If keys exist, generate a new API key for the specified owner
     const { owner } = req.body;
     if (!owner) {
-        return next(new ApiError('Owner info is required.', 400));
+        return next(new ApiError("An 'owner' field is required in the request body (e.g. an email address).", 400));
     }
 
     const existingOwnerKey = await ApiKey.countDocuments({ owner });

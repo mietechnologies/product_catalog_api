@@ -41,44 +41,40 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
 
-    try {
-        const miniatures = await Miniature.find({}, {
-            baseName: 1,
-            category: 1,
-            variants: 1
-        })
+    const miniatures = await Miniature.find({}, {
+        baseName: 1,
+        category: 1,
+        variants: 1
+    })
 
-        const allItems = miniatures.flatMap(mini => {
-            return mini.variants.map(variant => ({
-                productCode: variant.productCode,
-                name: `${mini.baseName}, ${variant.name}`,
-                size: variant.size,
-                category: mini.category,
-                thumbnail: variant.thumbnail,
-                images: variant.images,
-                cost: variant.price?.cost || 0,
-                wholesale: variant.price?.wholesale || 0,
-                msrp: variant.price?.msrp || 0
-            }));
-        })
+    const allItems = miniatures.flatMap(mini => {
+        return mini.variants.map(variant => ({
+            productCode: variant.productCode,
+            name: `${mini.baseName}, ${variant.name}`,
+            size: variant.size,
+            category: mini.category,
+            thumbnail: variant.thumbnail,
+            images: variant.images,
+            cost: variant.price?.cost || 0,
+            wholesale: variant.price?.wholesale || 0,
+            msrp: variant.price?.msrp || 0
+        }));
+    })
 
-        allItems.sort((a, b) => a.productCode.localeCompare(b.productCode));
+    allItems.sort((a, b) => a.productCode.localeCompare(b.productCode));
 
-        const totalItems = allItems.length;
-        const totalPages = Math.ceil(totalItems / limit);
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const items = allItems.slice(startIndex, endIndex);
+    const totalItems = allItems.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const items = allItems.slice(startIndex, endIndex);
 
-        res.json({
-            page,
-            totalPages,
-            totalItems,
-            items
-        })
-    } catch (error) {
-        return next(new ApiError('Error fetching miniatures', 500));
-    }
+    res.json({
+        page,
+        totalPages,
+        totalItems,
+        items
+    })
 });
 
 // Endpoint to get a mini by it's product code
@@ -157,15 +153,18 @@ exports.createMini = catchAsync(async (req, res, next) => {
         return next(new ApiError('Variants must be an array with at least one variant', 400));
     }
 
-    const processedVariants = variants.map((variant, index) => {
-        // Save images, create thumbnail, and create URI strings for each
+    const processedVariants = [];
+    for (let index = 0; index < variants.length; index++) {
+        const variant = variants[index];
         if (!sizeCategories.includes(variant.size)) {
-            return next(new ApiError(`Invalid size: ${variant.size}`, 400));
+            return next(new ApiError(
+                `Invalid size '${variant.size}' on variant '${variant.name || `index ${index}`}'. Valid sizes: ${sizeCategories.join(', ')}`,
+                400
+            ));
         }
 
         const productCode = generateMiniatureProductCode(category, count + index + 1);
-
-        return {
+        processedVariants.push({
             ...variant,
             productCode,
             price: {
@@ -173,8 +172,8 @@ exports.createMini = catchAsync(async (req, res, next) => {
                 wholesale: safeNumber(variant.price?.wholesale),
                 msrp: safeNumber(variant.price?.msrp)
             }
-        }
-    })
+        });
+    }
 
     const newMiniature = new Miniature({
         baseName,
