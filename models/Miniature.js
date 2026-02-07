@@ -17,7 +17,7 @@ const variantSchema = new mongoose.Schema({
     },
     productCode: { type: String, required: true },
     fileName: { type: String, required: true },
-    images: { type: [String] },
+    images: { type: Map, of: String, default: () => new Map() },
     thumbnail: { type: String },
     price: {
         cost: { type: Number },

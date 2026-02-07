@@ -8,6 +8,8 @@ router.get('/', authenticateApiKey, miniatureController.getAllMinis);           
 router.get('/:productCode', authenticateApiKey, miniatureController.getMiniByCode);  // Get a miniature by product code
 router.patch('/:productCode', authenticateApiKey, miniatureController.updateMini);   // Update a miniature by product code
 router.post('/', authenticateApiKey, miniatureController.createMini);                // Create a new miniature
+router.post('/:productCode/images', authenticateApiKey, miniatureController.uploadMiddleware, miniatureController.uploadVariantImage);    // Upload an image for a variant
+router.delete('/:productCode/images/:imageKey', authenticateApiKey, miniatureController.deleteVariantImage);                              // Delete an image from a variant
 
 
 module.exports = router;

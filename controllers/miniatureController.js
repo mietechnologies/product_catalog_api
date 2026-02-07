@@ -1,3 +1,6 @@
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const catchAsync = require('../utils/catchAsync');
 const Miniature = require('../models/Miniature');
 const ApiError = require('../utils/appError');
@@ -5,6 +8,32 @@ const categoryAbbreviations = require('../configs/miniCategoryAbbreviations');
 const sizeCategories = require('../configs/miniSizes');
 const { generateMiniatureProductCode, getVariantCountForCategory } = require('../utils/productCode');
 const { safeNumber } = require('../utils/validation');
+
+// Multer configuration for image uploads
+const PHOTOS_DIR = process.env.PHOTOS_DIRECTORY || path.join(__dirname, '..', 'app_data');
+fs.mkdirSync(PHOTOS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, PHOTOS_DIR),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `${req.params.productCode}-${Date.now()}${ext}`);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp/;
+    const extMatch = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mimeMatch = allowed.test(file.mimetype.split('/')[1]);
+    if (extMatch && mimeMatch) {
+        cb(null, true);
+    } else {
+        cb(new ApiError('Only jpeg, jpg, png, gif, and webp files are allowed', 400), false);
+    }
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+exports.uploadMiddleware = upload.single('image');
 
 // Endpoint to get all minis with pagination
 // Example: GET /api/miniatures?page=1&limit=20
@@ -158,4 +187,70 @@ exports.createMini = catchAsync(async (req, res, next) => {
     res.status(201).json(newMiniature);
 });
 
-// Function for uploading new photos for a variant
+// Upload a new image for a variant
+exports.uploadVariantImage = catchAsync(async (req, res, next) => {
+    const { productCode } = req.params;
+
+    if (!req.file) {
+        return next(new ApiError('No image file provided', 400));
+    }
+
+    const miniature = await Miniature.findOne({ 'variants.productCode': productCode });
+    if (!miniature) {
+        fs.unlink(req.file.path, () => {});
+        return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
+    }
+
+    const variant = miniature.variants.find(v => v.productCode === productCode);
+
+    // Compute the next integer key
+    const existingKeys = Array.from(variant.images.keys()).map(Number);
+    const nextKey = existingKeys.length > 0 ? Math.max(...existingKeys) + 1 : 0;
+
+    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    variant.images.set(String(nextKey), imageUrl);
+
+    await miniature.save();
+
+    res.status(201).json({
+        message: 'Image uploaded successfully',
+        imageKey: String(nextKey),
+        imageUrl,
+        images: variant.images
+    });
+});
+
+// Delete an image from a variant
+exports.deleteVariantImage = catchAsync(async (req, res, next) => {
+    const { productCode, imageKey } = req.params;
+
+    const miniature = await Miniature.findOne({ 'variants.productCode': productCode });
+    if (!miniature) {
+        return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
+    }
+
+    const variant = miniature.variants.find(v => v.productCode === productCode);
+
+    if (!variant.images.has(imageKey)) {
+        return next(new ApiError(`No image found with key: ${imageKey}`, 404));
+    }
+
+    const imageUrl = variant.images.get(imageKey);
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(PHOTOS_DIR, filename);
+
+    try {
+        fs.unlinkSync(filePath);
+    } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+    }
+
+    variant.images.delete(imageKey);
+    await miniature.save();
+
+    res.status(200).json({
+        message: 'Image deleted successfully',
+        deletedKey: imageKey,
+        images: variant.images
+    });
+});
