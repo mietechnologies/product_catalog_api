@@ -35,19 +35,57 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 exports.uploadMiddleware = upload.array('images', 10);
 
-// Endpoint to get all minis with pagination
-// Example: GET /api/miniatures?page=1&limit=20
+// Endpoint to get all minis with pagination and filters
+// Example: GET /api/miniatures?page=1&limit=20&category=Dragon&size=Large&minPrice=5&maxPrice=50&hasVariants=true
 exports.getAllMinis = catchAsync(async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
+    const { category, size, hasVariants, minPrice, maxPrice } = req.query;
 
-    const miniatures = await Miniature.find({}, {
+    // Build DB-level filter
+    const filter = {};
+
+    if (category) {
+        if (!Object.keys(categoryAbbreviations).includes(category)) {
+            return next(new ApiError(`Invalid category: ${category}. Valid categories: ${Object.keys(categoryAbbreviations).join(', ')}`, 400));
+        }
+        filter.category = category;
+    }
+
+    if (size) {
+        if (!sizeCategories.includes(size)) {
+            return next(new ApiError(`Invalid size: ${size}. Valid sizes: ${sizeCategories.join(', ')}`, 400));
+        }
+        filter['variants.size'] = size;
+    }
+
+    if (hasVariants === 'true') {
+        filter['variants.1'] = { $exists: true };
+    }
+
+    if (minPrice !== undefined) {
+        const min = parseFloat(minPrice);
+        if (isNaN(min)) {
+            return next(new ApiError('minPrice must be a valid number', 400));
+        }
+        filter['variants.price.msrp'] = { ...filter['variants.price.msrp'], $gte: min };
+    }
+
+    if (maxPrice !== undefined) {
+        const max = parseFloat(maxPrice);
+        if (isNaN(max)) {
+            return next(new ApiError('maxPrice must be a valid number', 400));
+        }
+        filter['variants.price.msrp'] = { ...filter['variants.price.msrp'], $lte: max };
+    }
+
+    const miniatures = await Miniature.find(filter, {
         baseName: 1,
         category: 1,
         variants: 1
     })
 
-    const allItems = miniatures.flatMap(mini => {
+    let allItems = miniatures.flatMap(mini => {
         return mini.variants.map(variant => ({
             productCode: variant.productCode,
             name: `${mini.baseName}, ${variant.name}`,
@@ -60,6 +98,19 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
             msrp: variant.price?.msrp || 0
         }));
     })
+
+    // Post-query filtering on flattened variants (DB filters match documents, not individual variants)
+    if (size) {
+        allItems = allItems.filter(item => item.size === size);
+    }
+    if (minPrice !== undefined) {
+        const min = parseFloat(minPrice);
+        allItems = allItems.filter(item => item.msrp >= min);
+    }
+    if (maxPrice !== undefined) {
+        const max = parseFloat(maxPrice);
+        allItems = allItems.filter(item => item.msrp <= max);
+    }
 
     allItems.sort((a, b) => a.productCode.localeCompare(b.productCode));
 
@@ -75,6 +126,50 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
         totalItems,
         items
     })
+});
+
+// Endpoint to search minis by text query
+// Example: GET /api/miniatures/search?q=dragon&page=1&limit=20
+exports.searchMinis = catchAsync(async (req, res, next) => {
+    const { q } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
+    if (!q) {
+        return next(new ApiError('Search query parameter "q" is required', 400));
+    }
+
+    const miniatures = await Miniature.find(
+        { $text: { $search: q } },
+        { score: { $meta: 'textScore' }, baseName: 1, category: 1, variants: 1 }
+    ).sort({ score: { $meta: 'textScore' } });
+
+    const allItems = miniatures.flatMap(mini => {
+        return mini.variants.map(variant => ({
+            productCode: variant.productCode,
+            name: `${mini.baseName}, ${variant.name}`,
+            size: variant.size,
+            category: mini.category,
+            thumbnail: variant.thumbnail,
+            images: variant.images,
+            cost: variant.price?.cost || 0,
+            wholesale: variant.price?.wholesale || 0,
+            msrp: variant.price?.msrp || 0
+        }));
+    });
+
+    const totalItems = allItems.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const items = allItems.slice(startIndex, endIndex);
+
+    res.json({
+        page,
+        totalPages,
+        totalItems,
+        items
+    });
 });
 
 // Endpoint to get a mini by it's product code
@@ -141,7 +236,7 @@ exports.updateMini = catchAsync(async (req, res, next) => {
 // Endpoint to create a new miniature
 // Example: POST /api/miniatures/
 exports.createMini = catchAsync(async (req, res, next) => {
-    const { baseName, category, variants } = req.body;
+    const { baseName, description, category, variants } = req.body;
 
     const categoryCode = categoryAbbreviations[category];
     if (!categoryCode) {
@@ -177,6 +272,7 @@ exports.createMini = catchAsync(async (req, res, next) => {
 
     const newMiniature = new Miniature({
         baseName,
+        description,
         category,
         variants: processedVariants
     });

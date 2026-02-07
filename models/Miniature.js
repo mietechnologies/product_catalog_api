@@ -4,6 +4,7 @@ const sizeCategories = require('../configs/miniSizes')
 
 const variantSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    description: { type: String },
     size: {
         type: String,
         required: true,
@@ -43,6 +44,7 @@ const variantSchema = new mongoose.Schema({
 
 const miniatureSchema = new mongoose.Schema({
     baseName: { type: String, required: true },
+    description: { type: String },
     category: {
         type: String,
         required: true,
@@ -72,6 +74,16 @@ const miniatureSchema = new mongoose.Schema({
         return ret;
         }
     }
+});
+
+miniatureSchema.index({
+    baseName: 'text',
+    description: 'text',
+    'variants.name': 'text',
+    'variants.description': 'text'
+}, {
+    weights: { baseName: 10, 'variants.name': 8, description: 5, 'variants.description': 3 },
+    name: 'miniature_text_search'
 });
 
 module.exports = mongoose.model('Miniature', miniatureSchema);
