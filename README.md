@@ -5,12 +5,17 @@ A Node.js, Express, and MongoDB API for managing and cataloging 3D prints (at th
 ## Features
 - API Key generation and validation
 - Miniature product management
-  - Variants with unique product codes
-  - Category-based indexing and size enums
+  - Variants with unique product codes (`M-{XX}-{NNNN}` format)
+  - Category-based indexing (14 categories) and size enums (Tiny through Gargantuan)
   - Structured pricing (cost, wholesale, MSRP)
-- Image upload support via `multer` (coming soon)
+- Multi-image upload and deletion per variant via `multer`
+- Static file serving for uploaded images (no auth required)
 - Environment-based configuration
-- Dockerized deployment
+- Dockerized deployment (MongoDB + API via docker-compose)
+
+## Prerequisites
+- [Docker](https://www.docker.com/) and Docker Compose
+- [Node.js](https://nodejs.org/) (v18+ recommended, only needed for local development outside Docker)
 
 ## Environment Configuration Setup
 
@@ -66,23 +71,34 @@ docker compose up -d
 ```
 >The `-d` flag runs the container in detached mode.
 
+## Local Development (without Docker)
+
+```bash
+npm install
+npm run start:dev
+```
+
+Requires a running MongoDB instance and `MONGO_URI` set in your `.env` file pointing to it.
+
 ## Using the API
 
-Use Thunder Client (VS Code), Postman, Insomnia, or curl to test endpoints.
+Use Hoppscotch, Thunder Client (VS Code), Postman, Insomnia, or curl to test endpoints.
 
-You can access the API locally with the following:
+You can access the API locally at:
 
 ```
 http://localhost:3000/api/<endpoint>
 ```
 
->Its worth noting, you will need to use the port number you outlined in the `.env` file. 3000 is the default if a port isn't found or is an invalid input.
+> You will need to use the port number you set in the `.env` file. 3000 is the default if a port isn't set or is an invalid input.
+
+For the full list of endpoints, request/response shapes, and error codes, see the **[API Reference](API.md)**.
 
 #### First Steps
 
-Many of endpoints are protected by an API Key. So, the first thing you need to do is make a `POST` request to the endpoint: `http://localhost:3000/api/keys`. For the first time this endpoint is called, no input is required and it will create a Master API Key. However, any subsequent calls will require an `owner` field passed in the body of the request, this should be an email address. (Validation for the the owner field is not currently implemented, and this will probably evolve over time)
+Most endpoints are protected by an API Key. The first thing you need to do is make a `POST` request to `http://localhost:3000/api/keys`. The first time this endpoint is called, no input is required and it will create a Master API Key. Subsequent calls require an `owner` field in the body (this should be an email address).
 
-When making a call to the API, you will need to use your API Key. The API Key needs to be input in a header field with the key of `x-api-key`. If an endpoint is protected and an API Key isn't used, you will receive an error.
+When making calls to protected endpoints, include your API Key in the `x-api-key` header. If the header is missing or the key is invalid/inactive, you will receive a `401` or `403` error.
 
 #### Creating a Miniature with Variants
 
@@ -135,3 +151,17 @@ Example Miniature:
     ]
 }
 ```
+
+#### Uploading Images to a Variant
+
+Once a miniature is created, you can upload images to any of its variants using the product code:
+
+```bash
+curl -X POST \
+  -H "x-api-key: your-key" \
+  -F "images=@front_view.jpg" \
+  -F "images=@side_view.jpg" \
+  http://localhost:3000/api/miniatures/M-DR-0001/images
+```
+
+Uploaded images are accessible without authentication at `http://localhost:3000/uploads/<filename>`.
