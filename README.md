@@ -154,8 +154,9 @@ Example Miniature:
 
 #### Uploading Images to a Variant
 
-Once a miniature is created, you can upload images to any of its variants using the product code:
+Once a miniature is created, you can upload images to any of its variants using the product code.
 
+**curl:**
 ```bash
 curl -X POST \
   -H "x-api-key: your-key" \
@@ -163,5 +164,21 @@ curl -X POST \
   -F "images=@side_view.jpg" \
   http://localhost:3000/api/miniatures/M-DR-0001/images
 ```
+
+**Postman:**
+1. Create a new `POST` request to `http://localhost:3000/api/miniatures/M-DR-0001/images`.
+2. In the **Headers** tab, add `x-api-key` with your API key.
+3. In the **Body** tab, select **form-data**.
+4. Add a field with the key `images`, change the type from **Text** to **File** using the dropdown, and select your image file.
+5. To upload multiple images, add additional rows with the same key `images`, each with a different file.
+6. Click **Send**.
+
+**Hoppscotch:**
+1. Set the method to `POST` and the URL to `http://localhost:3000/api/miniatures/M-DR-0001/images`.
+2. In the **Headers** section, add `x-api-key` with your API key.
+3. In the **Body** section, select **Multipart Form** as the content type.
+4. Add a field with the key `images`, set the type to **File**, and select your image file.
+5. To upload multiple images, add additional fields with the same key `images`, each with a different file.
+6. Click **Send**.
 
 Uploaded images are accessible without authentication at `http://localhost:3000/uploads/<filename>`.
