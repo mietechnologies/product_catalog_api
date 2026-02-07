@@ -33,7 +33,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
-exports.uploadMiddleware = upload.single('image');
+exports.uploadMiddleware = upload.array('images', 10);
 
 // Endpoint to get all minis with pagination
 // Example: GET /api/miniatures?page=1&limit=20
@@ -187,35 +187,38 @@ exports.createMini = catchAsync(async (req, res, next) => {
     res.status(201).json(newMiniature);
 });
 
-// Upload a new image for a variant
-exports.uploadVariantImage = catchAsync(async (req, res, next) => {
+// Upload images for a variant
+exports.uploadVariantImages = catchAsync(async (req, res, next) => {
     const { productCode } = req.params;
 
-    if (!req.file) {
-        return next(new ApiError('No image file provided', 400));
+    if (!req.files || req.files.length === 0) {
+        return next(new ApiError('No image files provided', 400));
     }
 
     const miniature = await Miniature.findOne({ 'variants.productCode': productCode });
     if (!miniature) {
-        fs.unlink(req.file.path, () => {});
+        req.files.forEach(file => fs.unlink(file.path, () => {}));
         return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
     }
 
     const variant = miniature.variants.find(v => v.productCode === productCode);
 
-    // Compute the next integer key
     const existingKeys = Array.from(variant.images.keys()).map(Number);
-    const nextKey = existingKeys.length > 0 ? Math.max(...existingKeys) + 1 : 0;
+    let nextKey = existingKeys.length > 0 ? Math.max(...existingKeys) + 1 : 0;
 
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    variant.images.set(String(nextKey), imageUrl);
+    const uploaded = [];
+    for (const file of req.files) {
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
+        const key = String(nextKey++);
+        variant.images.set(key, imageUrl);
+        uploaded.push({ imageKey: key, imageUrl });
+    }
 
     await miniature.save();
 
     res.status(201).json({
-        message: 'Image uploaded successfully',
-        imageKey: String(nextKey),
-        imageUrl,
+        message: `${uploaded.length} image(s) uploaded successfully`,
+        uploaded,
         images: variant.images
     });
 });
