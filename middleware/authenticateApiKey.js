@@ -10,8 +10,12 @@ exports.authenticateApiKey = catchAsync(async (req, res, next) => {
 
     const key = await ApiKey.findOne({ key: apiKey });
 
-    if (!key || !key.isActive) {
-        return res.status(403).json({ message: 'Invalid or inactive API key' });
+    if (!key) {
+        return res.status(403).json({ message: 'Invalid API key. No matching key found.' });
+    }
+
+    if (!key.isActive) {
+        return res.status(403).json({ message: `API key for owner '${key.owner}' is inactive.` });
     }
 
     req.apiKey = key; // Attach the key to the request for further use
