@@ -81,22 +81,39 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
 
     const miniatures = await Miniature.find(filter, {
         baseName: 1,
+        description: 1,
         category: 1,
         variants: 1
     })
 
+    // Determine pricing tier based on auth
+    const accountType = req.user?.accountType;
+    const fullAccess = !!(req.apiKey || accountType === 'admin');
+    const retailerAccess = accountType === 'retailer';
+
     let allItems = miniatures.flatMap(mini => {
-        return mini.variants.map(variant => ({
-            productCode: variant.productCode,
-            name: `${mini.baseName}, ${variant.name}`,
-            size: variant.size,
-            category: mini.category,
-            thumbnail: variant.thumbnail,
-            images: variant.images,
-            cost: variant.price?.cost || 0,
-            wholesale: variant.price?.wholesale || 0,
-            msrp: variant.price?.msrp || 0
-        }));
+        return mini.variants.map(variant => {
+            const item = {
+                productCode: variant.productCode,
+                baseName: mini.baseName,
+                name: `${mini.baseName}, ${variant.name}`,
+                description: mini.description,
+                variantDescription: variant.description,
+                size: variant.size,
+                category: mini.category,
+                images: variant.images,
+                msrp: variant.price?.msrp || 0
+            };
+
+            if (fullAccess) {
+                item.cost = variant.price?.cost || 0;
+                item.wholesale = variant.price?.wholesale || 0;
+            } else if (retailerAccess) {
+                item.wholesale = variant.price?.wholesale || 0;
+            }
+
+            return item;
+        });
     })
 
     // Post-query filtering on flattened variants (DB filters match documents, not individual variants)
