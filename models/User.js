@@ -10,7 +10,18 @@ const userSchema = new mongoose.Schema({
         required: true,
         enum: ['admin', 'retailer', 'consumer']
     },
-    password: { type: String, required: true, minlength: 8, select: false },
+    password: {
+        type: String,
+        required: true,
+        minlength: [8, 'Password must be at least 8 characters long.'],
+        validate: {
+            validator: function (v) {
+                return /[A-Z]/.test(v) && /[a-z]/.test(v) && /[\d\W]/.test(v);
+            },
+            message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number or special character.'
+        },
+        select: false
+    },
     createdAt: { type: Date, default: Date.now }
 }, {
     collection: 'Users',
