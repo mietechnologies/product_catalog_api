@@ -10,6 +10,13 @@ const userSchema = new mongoose.Schema({
         required: true,
         enum: ['admin', 'retailer', 'consumer']
     },
+    merchantName: { type: String, trim: true },
+    accountStatus: {
+        type: String,
+        enum: ['pending', 'active'],
+        default: 'active'
+    },
+    approvedDate: { type: Date },
     password: {
         type: String,
         required: true,

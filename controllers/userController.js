@@ -36,6 +36,71 @@ exports.createAdmin = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.createRetailer = catchAsync(async (req, res, next) => {
+    const { email, firstName, lastName, merchantName, password } = req.body;
+
+    if (!email || !firstName || !lastName || !merchantName || !password) {
+        return next(new AppError('Please provide email, firstName, lastName, merchantName, and password.', 400));
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        return next(new AppError('A user with this email already exists.', 409));
+    }
+
+    const user = await User.create({
+        email,
+        firstName,
+        lastName,
+        merchantName,
+        password,
+        accountType: 'retailer',
+        accountStatus: 'pending'
+    });
+
+    res.status(201).json({
+        status: 'success',
+        data: { user }
+    });
+});
+
+exports.getPendingRetailers = catchAsync(async (req, res, next) => {
+    const retailers = await User.find({ accountType: 'retailer', accountStatus: 'pending' });
+
+    res.status(200).json({
+        status: 'success',
+        results: retailers.length,
+        data: { retailers }
+    });
+});
+
+exports.approveRetailer = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+        return next(new AppError('No user found with that ID.', 404));
+    }
+
+    if (user.accountType !== 'retailer') {
+        return next(new AppError('This user is not a retailer account.', 400));
+    }
+
+    if (user.accountStatus === 'active') {
+        return next(new AppError('This retailer account is already active.', 400));
+    }
+
+    user.accountStatus = 'active';
+    user.approvedDate = Date.now();
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        status: 'success',
+        data: { user }
+    });
+});
+
 exports.login = catchAsync(async (req, res, next) => {
     const { email, password } = req.body;
 
