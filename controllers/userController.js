@@ -127,6 +127,97 @@ exports.rejectRetailer = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.getApprovedRetailers = catchAsync(async (req, res, next) => {
+    const retailers = await User.find({ accountType: 'retailer', accountStatus: 'active' });
+
+    res.status(200).json({
+        status: 'success',
+        results: retailers.length,
+        data: { retailers }
+    });
+});
+
+exports.getMe = catchAsync(async (req, res, next) => {
+    if (!req.user) {
+        return next(new AppError('This endpoint requires a Bearer token. API keys are not linked to user accounts.', 401));
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+        return next(new AppError('User not found.', 404));
+    }
+
+    res.status(200).json({
+        status: 'success',
+        data: { user }
+    });
+});
+
+exports.updateMe = catchAsync(async (req, res, next) => {
+    if (!req.user) {
+        return next(new AppError('This endpoint requires a Bearer token. API keys are not linked to user accounts.', 401));
+    }
+
+    const { firstName, lastName, email, merchantName } = req.body;
+
+    if (req.body.password || req.body.accountType || req.body.accountStatus) {
+        return next(new AppError('This endpoint cannot be used to update password, accountType, or accountStatus.', 400));
+    }
+
+    const updates = {};
+    if (firstName) updates.firstName = firstName;
+    if (lastName) updates.lastName = lastName;
+    if (merchantName) updates.merchantName = merchantName;
+
+    if (email) {
+        const existing = await User.findOne({ email, _id: { $ne: req.user._id } });
+        if (existing) {
+            return next(new AppError('A user with this email already exists.', 409));
+        }
+        updates.email = email;
+    }
+
+    const user = await User.findByIdAndUpdate(req.user._id, updates, {
+        new: true,
+        runValidators: true
+    });
+
+    res.status(200).json({
+        status: 'success',
+        data: { user }
+    });
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+    if (!req.user) {
+        return next(new AppError('This endpoint requires a Bearer token. API keys are not linked to user accounts.', 401));
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return next(new AppError('Please provide currentPassword and newPassword.', 400));
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+
+    if (!(await user.comparePassword(currentPassword))) {
+        return next(new AppError('Current password is incorrect.', 401));
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    const token = signToken(user._id);
+
+    res.status(200).json({
+        status: 'success',
+        token,
+        data: { user }
+    });
+});
+
 exports.login = catchAsync(async (req, res, next) => {
     const { email, password } = req.body;
 
