@@ -101,6 +101,32 @@ exports.approveRetailer = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.rejectRetailer = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+        return next(new AppError('No user found with that ID.', 404));
+    }
+
+    if (user.accountType !== 'retailer') {
+        return next(new AppError('This user is not a retailer account.', 400));
+    }
+
+    if (user.accountStatus !== 'pending') {
+        return next(new AppError('Only pending retailer accounts can be rejected.', 400));
+    }
+
+    user.accountStatus = 'rejected';
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        status: 'success',
+        data: { user }
+    });
+});
+
 exports.login = catchAsync(async (req, res, next) => {
     const { email, password } = req.body;
 
@@ -112,6 +138,14 @@ exports.login = catchAsync(async (req, res, next) => {
 
     if (!user || !(await user.comparePassword(password))) {
         return next(new AppError('Invalid email or password.', 401));
+    }
+
+    if (user.accountType === 'retailer' && user.accountStatus === 'pending') {
+        return next(new AppError('Your retailer account is pending approval.', 403));
+    }
+
+    if (user.accountType === 'retailer' && user.accountStatus === 'rejected') {
+        return next(new AppError('Your retailer account has been rejected.', 403));
     }
 
     const token = signToken(user._id);

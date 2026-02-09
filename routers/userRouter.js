@@ -8,6 +8,7 @@ router.post('/admin', authenticateApiKey, userController.createAdmin);
 router.post('/retailer', userController.createRetailer);
 router.get('/retailers/pending', authenticateApiKey, userController.getPendingRetailers);
 router.patch('/retailers/:id/approve', authenticateApiKey, userController.approveRetailer);
+router.patch('/retailers/:id/reject', authenticateApiKey, userController.rejectRetailer);
 router.post('/login', userController.login);
 
 module.exports = router;

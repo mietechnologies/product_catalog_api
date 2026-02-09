@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     merchantName: { type: String, trim: true },
     accountStatus: {
         type: String,
-        enum: ['pending', 'active'],
+        enum: ['pending', 'active', 'rejected'],
         default: 'active'
     },
     approvedDate: { type: Date },
@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema({
     collection: 'Users',
     toJSON: {
         transform: (doc, ret) => {
+            ret.id = ret._id;
             delete ret._id;
             delete ret.__v;
             delete ret.password;
@@ -42,6 +43,7 @@ const userSchema = new mongoose.Schema({
     },
     toObject: {
         transform: (doc, ret) => {
+            ret.id = ret._id;
             delete ret._id;
             delete ret.__v;
             delete ret.password;
