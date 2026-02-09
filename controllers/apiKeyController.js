@@ -44,6 +44,27 @@ exports.generateNewKey = catchAsync(async (req, res, next) => {
     });
 });
 
+// Endpoint to validate an API key without performing any other action
+exports.validateKey = catchAsync(async (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+
+    if (!apiKey) {
+        return next(new ApiError('API key is required in the x-api-key header.', 400));
+    }
+
+    const key = await ApiKey.findOne({ key: apiKey });
+
+    if (!key) {
+        return res.status(403).json({ valid: false, message: 'Invalid API key.' });
+    }
+
+    if (!key.isActive) {
+        return res.status(403).json({ valid: false, message: 'API key is inactive.' });
+    }
+
+    res.status(200).json({ valid: true, message: 'API key is valid.' });
+});
+
 exports.getOwnersKey = catchAsync(async (req, res, next) => {
     const { owner } = req.query;
 
