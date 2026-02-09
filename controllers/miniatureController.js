@@ -335,6 +335,63 @@ exports.uploadVariantImages = catchAsync(async (req, res, next) => {
     });
 });
 
+// Add a new variant to an existing miniature
+exports.addVariant = catchAsync(async (req, res, next) => {
+    const { productCode } = req.params;
+    const { name, size, fileName, description, price } = req.body;
+
+    if (!name) {
+        return next(new ApiError('Variant name is required', 400));
+    }
+    if (!size || !sizeCategories.includes(size)) {
+        return next(new ApiError(
+            `Invalid or missing size. Valid sizes: ${sizeCategories.join(', ')}`,
+            400
+        ));
+    }
+    if (!fileName) {
+        return next(new ApiError('fileName is required', 400));
+    }
+
+    const miniature = await Miniature.findOne({ 'variants.productCode': productCode });
+    if (!miniature) {
+        return next(new ApiError(`No miniature found with product code: ${productCode}`, 404));
+    }
+
+    const count = await getVariantCountForCategory(miniature.category);
+    const newProductCode = generateMiniatureProductCode(miniature.category, count + 1);
+
+    const newVariant = {
+        name,
+        size,
+        fileName,
+        description: description || '',
+        productCode: newProductCode,
+        price: {
+            cost: safeNumber(price?.cost),
+            wholesale: safeNumber(price?.wholesale),
+            msrp: safeNumber(price?.msrp),
+        },
+    };
+
+    miniature.variants.push(newVariant);
+    await miniature.save();
+
+    const saved = miniature.variants.find(v => v.productCode === newProductCode);
+
+    res.status(201).json({
+        productCode: saved.productCode,
+        name: `${miniature.baseName}, ${saved.name}`,
+        size: saved.size,
+        category: miniature.category,
+        thumbnail: saved.thumbnail || null,
+        images: saved.images || {},
+        cost: saved.price?.cost || 0,
+        wholesale: saved.price?.wholesale || 0,
+        msrp: saved.price?.msrp || 0,
+    });
+});
+
 // Delete an image from a variant
 exports.deleteVariantImage = catchAsync(async (req, res, next) => {
     const { productCode, imageKey } = req.params;
