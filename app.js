@@ -10,6 +10,7 @@ const globalErrorHandler = require('./controllers/errorController');
 const apiKeyRouter = require('./routers/apiKeyRouter');
 const miniatureRouter = require('./routers/miniatureRouter');
 const userRouter = require('./routers/userRouter');
+const orderRouter = require('./routers/orderRouter');
 
 // MIDDLEWARE
 app.use(cors());
@@ -26,6 +27,7 @@ app.use('/uploads', express.static(photosDir));
 app.use('/api/keys', apiKeyRouter);
 app.use('/api/miniatures', miniatureRouter);
 app.use('/api/users', userRouter);
+app.use('/api/orders', orderRouter);
 
 app.use((req, res, next) => {
     next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
