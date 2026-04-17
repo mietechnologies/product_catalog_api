@@ -161,18 +161,31 @@ exports.searchMinis = catchAsync(async (req, res, next) => {
         { score: { $meta: 'textScore' }, baseName: 1, category: 1, variants: 1 }
     ).sort({ score: { $meta: 'textScore' } });
 
+    const accountType = req.user?.accountType;
+    const fullAccess = !!(req.apiKey || accountType === 'admin');
+    const retailerAccess = accountType === 'retailer';
+
     const allItems = miniatures.flatMap(mini => {
-        return mini.variants.map(variant => ({
-            productCode: variant.productCode,
-            name: `${mini.baseName}, ${variant.name}`,
-            size: variant.size,
-            category: mini.category,
-            thumbnail: variant.thumbnail,
-            images: variant.images,
-            cost: variant.price?.cost || 0,
-            wholesale: variant.price?.wholesale || 0,
-            msrp: variant.price?.msrp || 0
-        }));
+        return mini.variants.map(variant => {
+            const item = {
+                productCode: variant.productCode,
+                name: `${mini.baseName}, ${variant.name}`,
+                size: variant.size,
+                category: mini.category,
+                thumbnail: variant.thumbnail,
+                images: variant.images,
+                msrp: variant.price?.msrp || 0
+            };
+
+            if (fullAccess) {
+                item.cost = variant.price?.cost || 0;
+                item.wholesale = variant.price?.wholesale || 0;
+            } else if (retailerAccess) {
+                item.wholesale = variant.price?.wholesale || 0;
+            }
+
+            return item;
+        });
     });
 
     const totalItems = allItems.length;
@@ -202,17 +215,28 @@ exports.getMiniByCode = catchAsync(async (req, res, next) => {
 
     const variant = miniature.variants.find(v => v.productCode === productCode);
 
-    res.json({
+    const accountType = req.user?.accountType;
+    const fullAccess = !!(req.apiKey || accountType === 'admin');
+    const retailerAccess = accountType === 'retailer';
+
+    const item = {
         productCode: variant.productCode,
         name: `${miniature.baseName}, ${variant.name}`,
         size: variant.size,
         category: miniature.category,
         thumbnail: variant.thumbnail,
         images: variant.images,
-        cost: variant.price?.cost || 0,
-        wholesale: variant.price?.wholesale || 0,
         msrp: variant.price?.msrp || 0
-    })
+    };
+
+    if (fullAccess) {
+        item.cost = variant.price?.cost || 0;
+        item.wholesale = variant.price?.wholesale || 0;
+    } else if (retailerAccess) {
+        item.wholesale = variant.price?.wholesale || 0;
+    }
+
+    res.json(item)
 });
 
 exports.updateMini = catchAsync(async (req, res, next) => {
