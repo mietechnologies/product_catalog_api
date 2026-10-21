@@ -7,7 +7,7 @@ const ApiError = require('../utils/appError');
 const categoryAbbreviations = require('../configs/miniCategoryAbbreviations');
 const sizeCategories = require('../configs/miniSizes');
 const { generateMiniatureProductCode, getVariantCountForCategory } = require('../utils/productCode');
-const { safeNumber } = require('../utils/validation');
+const { safeNumber, parseAttribution } = require('../utils/validation');
 
 // Multer configuration for image uploads
 const PHOTOS_DIR = process.env.PHOTOS_DIRECTORY || path.join(__dirname, '..', 'app_data');
@@ -83,6 +83,7 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
         baseName: 1,
         description: 1,
         category: 1,
+        attribution: 1,
         variants: 1
     })
 
@@ -102,6 +103,7 @@ exports.getAllMinis = catchAsync(async (req, res, next) => {
                 size: variant.size,
                 category: mini.category,
                 images: variant.images,
+                attribution: mini.attribution || null,
                 msrp: variant.price?.msrp || 0
             };
 
@@ -158,7 +160,7 @@ exports.searchMinis = catchAsync(async (req, res, next) => {
 
     const miniatures = await Miniature.find(
         { $text: { $search: q } },
-        { score: { $meta: 'textScore' }, baseName: 1, category: 1, variants: 1 }
+        { score: { $meta: 'textScore' }, baseName: 1, category: 1, attribution: 1, variants: 1 }
     ).sort({ score: { $meta: 'textScore' } });
 
     const accountType = req.user?.accountType;
@@ -174,6 +176,7 @@ exports.searchMinis = catchAsync(async (req, res, next) => {
                 category: mini.category,
                 thumbnail: variant.thumbnail,
                 images: variant.images,
+                attribution: mini.attribution || null,
                 msrp: variant.price?.msrp || 0
             };
 
@@ -226,6 +229,7 @@ exports.getMiniByCode = catchAsync(async (req, res, next) => {
         category: miniature.category,
         thumbnail: variant.thumbnail,
         images: variant.images,
+        attribution: miniature.attribution || null,
         msrp: variant.price?.msrp || 0
     };
 
@@ -254,7 +258,19 @@ exports.updateMini = catchAsync(async (req, res, next) => {
         return next(new ApiError(`Invalid size: ${updates.size}`, 400));
     }
 
+    // Attribution lives on the miniature (shared by all variants), not the variant
+    let attribution;
+    try {
+        attribution = parseAttribution(updates.attribution);
+    } catch (message) {
+        return next(new ApiError(message, 400));
+    }
+    if (attribution !== undefined) {
+        miniature.attribution = attribution === null ? undefined : attribution;
+    }
+
     Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'attribution') return;
         if (key === 'price' && typeof value === 'object') {
             Object.entries(value).forEach(([pKey, pValue]) => {
                 if (['cost', 'wholesale', 'msrp'].includes(pKey) && typeof pValue === 'number') {
@@ -278,6 +294,13 @@ exports.updateMini = catchAsync(async (req, res, next) => {
 // Example: POST /api/miniatures/
 exports.createMini = catchAsync(async (req, res, next) => {
     const { baseName, description, category, variants } = req.body;
+
+    let attribution;
+    try {
+        attribution = parseAttribution(req.body.attribution);
+    } catch (message) {
+        return next(new ApiError(message, 400));
+    }
 
     const categoryCode = categoryAbbreviations[category];
     if (!categoryCode) {
@@ -315,6 +338,7 @@ exports.createMini = catchAsync(async (req, res, next) => {
         baseName,
         description,
         category,
+        attribution: attribution || undefined,
         variants: processedVariants
     });
 
@@ -410,6 +434,7 @@ exports.addVariant = catchAsync(async (req, res, next) => {
         category: miniature.category,
         thumbnail: saved.thumbnail || null,
         images: saved.images || {},
+        attribution: miniature.attribution || null,
         cost: saved.price?.cost || 0,
         wholesale: saved.price?.wholesale || 0,
         msrp: saved.price?.msrp || 0,

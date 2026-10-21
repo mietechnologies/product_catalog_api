@@ -42,6 +42,20 @@ const variantSchema = new mongoose.Schema({
     }
 });
 
+const attributionSchema = new mongoose.Schema({
+    creator: { type: String, trim: true },
+    modelUrl: {
+        type: String,
+        trim: true,
+        validate: {
+            validator: function (v) {
+                return !v || /^https?:\/\/\S+$/i.test(v);
+            },
+            message: props => `${props.value} is not a valid http(s) URL!`
+        }
+    }
+}, { _id: false });
+
 const miniatureSchema = new mongoose.Schema({
     baseName: { type: String, required: true },
     description: { type: String },
@@ -56,6 +70,7 @@ const miniatureSchema = new mongoose.Schema({
             message: props => `${props.value} is not a valid category!`
         }
     },
+    attribution: { type: attributionSchema, default: undefined },
     variants: [variantSchema]
 }, {
     collection: 'Miniatures',
