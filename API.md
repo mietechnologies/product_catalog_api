@@ -27,6 +27,11 @@ Base URL: `http://localhost:<PORT>/api`
 - [12. Approve Retailer](#12-approve-retailer) — `PATCH /api/users/retailers/:id/approve` *(API Key or Admin JWT)*
 - [13. Reject Retailer](#13-reject-retailer) — `PATCH /api/users/retailers/:id/reject` *(API Key or Admin JWT)*
 
+### Products
+- [P1. Product Types and Collections](#p1-product-types-and-collections) — `GET /api/products/meta`
+- [P2. Product Endpoints (all types)](#p2-product-endpoints-all-types) — `/api/products`
+- [P3. Create Print](#p3-create-print) — `POST /api/products` *(API Key or Admin JWT)*
+
 ### Miniatures
 - [14. List All Miniatures](#14-list-all-miniatures) — `GET /api/miniatures`
 - [15. Search Miniatures](#15-search-miniatures) — `GET /api/miniatures/search` *(API Key or Admin JWT)*
@@ -718,7 +723,115 @@ Sets a pending retailer account to rejected. Only accounts with `accountStatus: 
 
 ---
 
+## Product Endpoints
+
+Every product has a `productType`. Today there are two:
+
+| `productType` | Label | Code prefix | Variants | Categories |
+|---|---|---|---|---|
+| `miniature` | Miniatures | `M` | Yes (each variant has its own size, price, images, product code) | Creature types (see below) |
+| `print` | Prints | `P` | No (the product itself has the price, images, product code) | Accessory (`AC`), Decor (`DE`), Figurine (`FG`), Toy (`TY`), Other (`OT`) |
+
+Product codes follow `{prefix}-{XX}-{NNNN}`, e.g. `M-DR-0001` or `P-TY-0001`.
+
+All products also share:
+- `collections` — Optional list of free-form groupings, e.g. `["Halloween", "Trunk or Treat"]`. Duplicates and blanks are dropped.
+- `attribution` — Optional `{ creator, modelUrl }` credit (see Create Miniature).
+
+Catalog items returned by every list, search, and get endpoint now include `productType`, `baseName`, `collections`, and `attribution`. Items for miniature variants also include `size` and `variantDescription`.
+
+---
+
+### P1. Product Types and Collections
+
+**Method:** `GET`
+**Route:** `/api/products/meta`
+**Authentication:** None (Public)
+
+**Use Case:**
+Returns the product types with their categories (and sizes for miniatures), plus every collection currently in use. Use this to build catalog tabs and filters.
+
+**Success Response (200 OK):**
+```json
+{
+    "productTypes": {
+        "miniature": { "label": "Miniatures", "codePrefix": "M", "hasVariants": true, "categories": ["Aberration", "..."], "sizes": ["Tiny", "..."] },
+        "print": { "label": "Prints", "codePrefix": "P", "hasVariants": false, "categories": ["Accessory", "Decor", "Figurine", "Toy", "Other"] }
+    },
+    "collections": ["Halloween", "Trunk or Treat"]
+}
+```
+
+---
+
+### P2. Product Endpoints (all types)
+
+`/api/products` has the same routes as `/api/miniatures` (sections 14–21), but covers every product type. `/api/miniatures` is the same router scoped to `productType: "miniature"`, so existing clients keep working.
+
+| Route | Notes |
+|---|---|
+| `GET /api/products` | Same query params as section 14, plus `productType` (`miniature` or `print`) and `collection` (case-insensitive exact match). `size` only matches miniature variants. |
+| `GET /api/products/search` | Same as section 15, plus an optional `productType`. Collections are searchable. |
+| `GET /api/products/:productCode` | Any product code, e.g. `P-DE-0001`. |
+| `PATCH /api/products/:productCode` | See section 18. For prints, `name`, `description`, `fileName`, `thumbnail`, and `price` update the print. Any type also accepts `collections` and `attribution`. |
+| `POST /api/products` | Requires `productType`. Miniature bodies are the same as section 17. For prints, see P3. |
+| `POST /api/products/:productCode/variants` | Miniatures only. Returns 400 for prints. |
+| `POST /api/products/:productCode/images` | Uploads to a miniature variant or a print. |
+| `DELETE /api/products/:productCode/images/:imageKey` | Deletes from a miniature variant or a print. |
+
+**Example list item for a print:**
+```json
+{
+    "productCode": "P-DE-0001",
+    "productType": "print",
+    "baseName": "Jack-o'-Lantern",
+    "name": "Jack-o'-Lantern",
+    "description": "Grinning pumpkin with a tealight cavity.",
+    "category": "Decor",
+    "collections": ["Halloween"],
+    "attribution": null,
+    "thumbnail": null,
+    "images": {},
+    "msrp": 6.00
+}
+```
+
+---
+
+### P3. Create Print
+
+**Method:** `POST`
+**Route:** `/api/products`
+**Authentication:** API Key or Admin JWT
+
+**Request Body:**
+```json
+{
+    "productType": "print",
+    "name": "Jack-o'-Lantern",
+    "description": "Grinning pumpkin with a tealight cavity.",
+    "category": "Decor",
+    "fileName": "jack_o_lantern.stl",
+    "collections": ["Halloween", "Trunk or Treat"],
+    "price": { "cost": 1.50, "wholesale": 3.00, "msrp": 6.00 }
+}
+```
+
+**Required Fields:** `productType`, `name`, `category` (a print category), `fileName`.
+
+**Optional Fields:** `description`, `thumbnail`, `collections`, `attribution`, `price.cost`, `price.wholesale`, `price.msrp`.
+
+**Success Response (201 Created):** The full print document with its auto-generated `productCode`.
+
+**Error Responses:**
+
+- **400 Bad Request** — Missing or invalid `productType`, missing `name` or `fileName`, invalid category, or invalid attribution.
+
+---
+
 ## Miniature Endpoints
+
+These routes are scoped to miniatures. Requests for a print's product code return 404 here; use `/api/products` instead. Miniature create and update bodies also accept `collections`, and `PATCH` accepts `baseName` to rename the parent miniature.
 
 Product codes follow the format `M-{XX}-{NNNN}` where `XX` is the two-letter category abbreviation and `NNNN` is a zero-padded sequential number per category.
 
@@ -1262,7 +1375,7 @@ Places a new order for one or more miniature variants. Admin accounts cannot pla
             "accountType": "retailer",
             "items": [
                 {
-                    "miniatureId": "507f1f77bcf86cd799439022",
+                    "productId": "507f1f77bcf86cd799439022",
                     "productCode": "M-DR-0001",
                     "quantity": 2,
                     "unitCost": 22.00,
@@ -1371,7 +1484,7 @@ Returns the full details of a single order by its MongoDB ObjectId.
             "accountType": "retailer",
             "items": [
                 {
-                    "miniatureId": "507f1f77bcf86cd799439022",
+                    "productId": "507f1f77bcf86cd799439022",
                     "productCode": "M-DR-0001",
                     "quantity": 2,
                     "unitCost": 22.00,
@@ -1430,7 +1543,7 @@ Returns the authenticated user's own orders, sorted newest first. Paginated. API
                 "accountType": "retailer",
                 "items": [
                     {
-                        "miniatureId": "507f1f77bcf86cd799439022",
+                        "productId": "507f1f77bcf86cd799439022",
                         "productCode": "M-DR-0001",
                         "quantity": 2,
                         "unitCost": 22.00,
@@ -1485,7 +1598,7 @@ Returns the full details of a single order by its MongoDB ObjectId, scoped to th
             "accountType": "retailer",
             "items": [
                 {
-                    "miniatureId": "507f1f77bcf86cd799439022",
+                    "productId": "507f1f77bcf86cd799439022",
                     "productCode": "M-DR-0001",
                     "quantity": 2,
                     "unitCost": 22.00,
