@@ -12,5 +12,6 @@ module.exports = {
     "Monstrosity": "MO",
     "Ooze": "OZ",
     "Plant": "PL",
+    "Terrain": "TR",
     "Undead": "UN"
 }

@@ -729,8 +729,8 @@ Every product has a `productType`. Today there are two:
 
 | `productType` | Label | Code prefix | Variants | Categories |
 |---|---|---|---|---|
-| `miniature` | Miniatures | `M` | Yes (each variant has its own size, price, images, product code) | Creature types (see below) |
-| `print` | Prints | `P` | No (the product itself has the price, images, product code) | Accessory (`AC`), Decor (`DE`), Figurine (`FG`), Toy (`TY`), Other (`OT`) |
+| `miniature` | Miniatures | `M` | Yes (each variant has its own size, price, images, product code) | Creature types plus Terrain (see below) |
+| `print` | Prints | `P` | No (the product itself has the price, images, product code) | Cosplay & Props (`CP`), Decor (`DE`), Desk & Office (`DK`), Figurine (`FG`), Gaming Accessories (`GM`), Jewelry (`JW`), Kitchen (`KT`), Lighting (`LT`), Organization (`OR`), Planters & Garden (`PG`), Toy (`TY`), Other (`OT`) |
 
 Product codes follow `{prefix}-{XX}-{NNNN}`, e.g. `M-DR-0001` or `P-TY-0001`.
 
@@ -756,7 +756,7 @@ Returns the product types with their categories (and sizes for miniatures), plus
 {
     "productTypes": {
         "miniature": { "label": "Miniatures", "codePrefix": "M", "hasVariants": true, "categories": ["Aberration", "..."], "sizes": ["Tiny", "..."] },
-        "print": { "label": "Prints", "codePrefix": "P", "hasVariants": false, "categories": ["Accessory", "Decor", "Figurine", "Toy", "Other"] }
+        "print": { "label": "Prints", "codePrefix": "P", "hasVariants": false, "categories": ["Cosplay & Props", "Decor", "Desk & Office", "..."] }
     },
     "collections": ["Halloween", "Trunk or Treat"]
 }
@@ -851,6 +851,7 @@ Product codes follow the format `M-{XX}-{NNNN}` where `XX` is the two-letter cat
 | Monstrosity | MO |
 | Ooze | OZ |
 | Plant | PL |
+| Terrain | TR |
 | Undead | UN |
 
 **Valid Sizes:** `Tiny`, `Small`, `Medium`, `Large`, `Huge`, `Gargantuan`
