@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const lineItemSchema = new mongoose.Schema({
-    miniatureId: { type: mongoose.Schema.Types.ObjectId, ref: 'Miniature', required: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     productCode: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     unitCost: { type: Number, required: true },

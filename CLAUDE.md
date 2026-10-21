@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MieTech Product Catalog API — a Node.js/Express 5/MongoDB REST API for managing a catalog of 3D-printed tabletop miniatures with variant support, image uploads, and pricing metadata. Dockerized with docker-compose (MongoDB + API).
+MieTech Product Catalog API — a Node.js/Express 5/MongoDB REST API for managing a catalog of 3D-printed products (tabletop miniatures with variant support, plus general prints like figurines, toys and decor), image uploads, and pricing metadata. Dockerized with docker-compose (MongoDB + API).
 
 ## Commands
 
@@ -33,24 +33,34 @@ Router → (authenticateApiKey middleware) → Controller → Model → Response
 
 ### Key Directories
 
-- **`models/`** — Mongoose schemas. `Miniature` has embedded `variants` subdocuments. `ApiKey` stores API keys with owner and active status.
+- **`models/`** — Mongoose schemas. `Product` is the base model; `Miniature` (embedded `variants`) and `Print` are discriminators on it. `ApiKey` stores API keys with owner and active status.
 - **`controllers/`** — Route handlers wrapped in `catchAsync`. `errorController` is the global Express error handler.
-- **`routers/`** — Express routers mounted at `/api/keys` and `/api/miniatures`.
+- **`routers/`** — Express routers. `productRouter` builds both `/api/products` (all types) and `/api/miniatures` (scoped to miniatures).
 - **`middleware/`** — `authenticateApiKey` validates the `x-api-key` header against the ApiKey collection.
-- **`configs/`** — Static data: `miniCategoryAbbreviations` (category → 2-letter code map) and `miniSizes` (valid size enum array).
-- **`utils/`** — `AppError` (operational error class), `catchAsync` (async error wrapper), `generateApiKey` (crypto random hex), `productCode` (generates `M-{CAT}-{NNNN}` codes), `validation` (safeNumber helper).
+- **`configs/`** — Static data: `productTypes` (per-type code prefix, categories, sizes), `miniCategoryAbbreviations` and `printCategoryAbbreviations` (category → 2-letter code maps), and `miniSizes` (valid size enum array).
+- **`utils/`** — `AppError` (operational error class), `catchAsync` (async error wrapper), `generateApiKey` (crypto random hex), `productCode` (generates `{TYPE}-{CAT}-{NNNN}` codes), `validation` (safeNumber helper).
 - **`docker/`** — `mongo-init.js` creates the non-root MongoDB app user on container init.
 - **`app_data/`** — Mounted as `/app/uploads` in the Docker container for image storage.
 
 ### Data Model
 
-**Miniature** — `baseName`, `category` (enum validated against `miniCategoryAbbreviations` keys), optional `attribution{creator, modelUrl}` (shared by all variants; `modelUrl` must be http(s)), `variants[]` (embedded subdocs with `name`, `size`, `productCode`, `fileName`, `images[]`, `thumbnail`, `price{cost, wholesale, msrp}`). Collection name: `Miniatures`.
+**Product** (`models/Product.js`) — base model for every product type, stored in the `Products` collection with `productType` as the Mongoose discriminator key. Shared fields: `name`, `description`, `collections[]` (free-form groupings like "Halloween"), optional `attribution{creator, modelUrl}` (`modelUrl` must be http(s)). `sellableUnits()` returns what a customer buys (the variants, or the product itself); `Product.findByProductCode(code, productType?)` returns `{ product, unit }`. Load models via `models/index.js` so every discriminator is registered.
+
+Sellable fields shared by every unit (`models/sellableFields.js`): `productCode`, `fileName`, `images` (Map), `thumbnail`, `price{cost, wholesale, msrp}`.
+
+**Miniature** (`productType: "miniature"`) — `category` (creature type from `miniCategoryAbbreviations`), `variants[]` (each has `name`, `description`, `size` plus the sellable fields). API responses still call the product name `baseName`.
+
+**Print** (`productType: "print"`) — general prints (figurines, toys, decor). `category` from `printCategoryAbbreviations`, plus the sellable fields at the top level. No variants.
+
+Product types, their code prefixes and category maps live in `configs/productTypes.js`. Adding a type means a new discriminator model, a config entry, and a builder in `productController`.
+
+**Order** — line items reference `productId` (any product type) and `productCode`.
 
 **ApiKey** — `key` (unique hex string), `owner` (email or "master"), `isActive`, `createdAt`. Collection name: `ApiKeys`.
 
 ### Product Code Format
 
-Product codes follow `M-{XX}-{NNNN}` where `XX` is the 2-letter category abbreviation and `NNNN` is a zero-padded sequential number per category. Generated in `utils/productCode.js` using counts from the database.
+Product codes follow `{P}-{XX}-{NNNN}` where `P` is the product type's prefix (`M` miniature, `P` print), `XX` is the 2-letter category abbreviation for that type, and `NNNN` is a zero-padded sequential number per type + category. Every sellable unit (each miniature variant, each print) gets its own code. Generated in `utils/productCode.js` using counts from the database.
 
 ### API Authentication
 

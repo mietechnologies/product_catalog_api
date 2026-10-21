@@ -1,10 +1,11 @@
 # MieTech Product Catalog API
 
-A Node.js, Express, and MongoDB API for managing and cataloging 3D prints (at the moment only Table Top miniatures) with variant support, image uploads, and pricing metadata. The application is containerized with Docker for portability and ease of deployment.
+A Node.js, Express, and MongoDB API for managing and cataloging 3D prints (tabletop miniatures with variant support, plus general prints like figurines, toys and decor organized into collections), image uploads, and pricing metadata. The application is containerized with Docker for portability and ease of deployment.
 
 ## Features
 - API Key generation and validation
 - Miniature product management
+- General print products (figurines, toys, decor) with collections such as "Halloween", served from `/api/products`
   - Variants with unique product codes (`M-{XX}-{NNNN}` format)
   - Category-based indexing (14 categories) and size enums (Tiny through Gargantuan)
   - Structured pricing (cost, wholesale, MSRP)

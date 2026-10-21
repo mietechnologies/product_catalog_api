@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
-const categoryAbbreviations = require('../configs/miniCategoryAbbreviations');
-const sizeCategories = require('../configs/miniSizes')
+const Product = require('./Product');
+const sellableFields = require('./sellableFields');
+const { miniature } = require('../configs/productTypes');
+
+const sizeCategories = miniature.sizes;
+const categories = Object.keys(miniature.categories);
 
 const variantSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -16,89 +20,41 @@ const variantSchema = new mongoose.Schema({
             message: props => `${props.value} is not a valid size!`
         }
     },
-    productCode: { type: String, required: true },
-    fileName: { type: String, required: true },
-    images: { type: Map, of: String, default: () => new Map() },
-    thumbnail: { type: String },
-    price: {
-        cost: { type: Number },
-        wholesale: { type: Number },
-        msrp: { type: Number }
-    }
+    ...sellableFields()
 }, {
     toJSON: {
-    transform: (doc, ret) => {
-      delete ret._id;
-      delete ret.__v;
-      return ret;
-    }
+        transform: (doc, ret) => {
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
     },
     toObject: {
         transform: (doc, ret) => {
-        delete ret._id;
-        delete ret.__v;
-        return ret;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
         }
     }
 });
 
-const attributionSchema = new mongoose.Schema({
-    creator: { type: String, trim: true },
-    modelUrl: {
-        type: String,
-        trim: true,
-        validate: {
-            validator: function (v) {
-                return !v || /^https?:\/\/\S+$/i.test(v);
-            },
-            message: props => `${props.value} is not a valid http(s) URL!`
-        }
-    }
-}, { _id: false });
-
 const miniatureSchema = new mongoose.Schema({
-    baseName: { type: String, required: true },
-    description: { type: String },
     category: {
         type: String,
         required: true,
-        enum: Object.keys(categoryAbbreviations),
+        enum: categories,
         validate: {
             validator: function (v) {
-                return Object.keys(categoryAbbreviations).includes(v);
+                return categories.includes(v);
             },
             message: props => `${props.value} is not a valid category!`
         }
     },
-    attribution: { type: attributionSchema, default: undefined },
     variants: [variantSchema]
-}, {
-    collection: 'Miniatures',
-    timestamps: true,
-    toJSON: {
-    transform: (doc, ret) => {
-      delete ret._id;
-      delete ret.__v;
-      return ret;
-    }
-    },
-    toObject: {
-        transform: (doc, ret) => {
-        delete ret._id;
-        delete ret.__v;
-        return ret;
-        }
-    }
 });
 
-miniatureSchema.index({
-    baseName: 'text',
-    description: 'text',
-    'variants.name': 'text',
-    'variants.description': 'text'
-}, {
-    weights: { baseName: 10, 'variants.name': 8, description: 5, 'variants.description': 3 },
-    name: 'miniature_text_search'
-});
+miniatureSchema.methods.sellableUnits = function () {
+    return this.variants;
+};
 
-module.exports = mongoose.model('Miniature', miniatureSchema);
+module.exports = Product.discriminator('Miniature', miniatureSchema, 'miniature');
