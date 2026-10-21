@@ -1,20 +1,25 @@
-const Miniature = require('../models/Miniature');
-const categoryAbbreviations = require('../configs/miniCategoryAbbreviations');
+const productTypes = require('../configs/productTypes');
 
-exports.generateMiniatureProductCode = function(category, index) {
-    const categoryCode = categoryAbbreviations[category];
+exports.generateProductCode = function(productType, category, index) {
+    const typeConfig = productTypes[productType];
+    if (!typeConfig) {
+        throw new Error(`Invalid product type: ${productType}`);
+    }
 
+    const categoryCode = typeConfig.categories[category];
     if (!categoryCode) {
         throw new Error(`Invalid category: ${category}`);
     }
 
     const number = String(index).padStart(4, '0');
 
-    return `M-${categoryCode}-${number}`;
+    return `${typeConfig.codePrefix}-${categoryCode}-${number}`;
 }
 
-exports.getVariantCountForCategory = async function(category) {
-    const miniatures = await Miniature.find({ category }, { variants: 1 })
-        
-    return miniatures.reduce((count, mini) => count + (mini.variants.length || 0), 0);
+// Counts the sellable units already issued a code for this type + category,
+// so the next code is count + 1.
+exports.getUnitCountForCategory = async function(Model, category) {
+    const products = await Model.find({ category });
+
+    return products.reduce((count, product) => count + product.sellableUnits().length, 0);
 }

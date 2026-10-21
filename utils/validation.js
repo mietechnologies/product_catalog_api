@@ -27,3 +27,19 @@ exports.parseAttribution = function(value) {
 
     return Object.keys(result).length > 0 ? result : null;
 }
+
+
+exports.parsePrice = function(price) {
+    return {
+        cost: exports.safeNumber(price?.cost),
+        wholesale: exports.safeNumber(price?.wholesale),
+        msrp: exports.safeNumber(price?.msrp)
+    };
+}
+
+// Accepts an array of strings or a comma-separated string. Returns undefined when absent.
+exports.parseCollections = function(value) {
+    if (value === undefined || value === null) return undefined;
+    const list = Array.isArray(value) ? value : String(value).split(',');
+    return list.filter(v => typeof v === 'string').map(v => v.trim()).filter(Boolean);
+}

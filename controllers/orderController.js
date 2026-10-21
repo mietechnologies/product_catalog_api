@@ -1,5 +1,5 @@
 const Order = require('../models/Order');
-const Miniature = require('../models/Miniature');
+const { Product } = require('../models');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 
@@ -26,21 +26,21 @@ exports.createOrder = catchAsync(async (req, res, next) => {
             return next(new AppError('Each item must have a productCode and quantity.', 400));
         }
 
-        const miniature = await Miniature.findOne({ 'variants.productCode': item.productCode });
-        if (!miniature) {
-            return next(new AppError(`No miniature found with product code: ${item.productCode}`, 404));
+        const found = await Product.findByProductCode(item.productCode);
+        if (!found || !found.unit) {
+            return next(new AppError(`No product found with product code: ${item.productCode}`, 404));
         }
 
-        const variant = miniature.variants.find(v => v.productCode === item.productCode);
+        const { product, unit } = found;
 
         const unitCost = req.user.accountType === 'retailer'
-            ? (variant.price?.wholesale || 0)
-            : (variant.price?.msrp || 0);
+            ? (unit.price?.wholesale || 0)
+            : (unit.price?.msrp || 0);
 
         const totalCost = unitCost * item.quantity;
 
         lineItems.push({
-            miniatureId: miniature._id,
+            productId: product._id,
             productCode: item.productCode,
             quantity: item.quantity,
             unitCost,

@@ -8,7 +8,7 @@ const app = express();
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const apiKeyRouter = require('./routers/apiKeyRouter');
-const miniatureRouter = require('./routers/miniatureRouter');
+const buildProductRouter = require('./routers/productRouter');
 const userRouter = require('./routers/userRouter');
 const orderRouter = require('./routers/orderRouter');
 
@@ -25,7 +25,8 @@ app.use('/uploads', express.static(photosDir));
 
 // ROUTES
 app.use('/api/keys', apiKeyRouter);
-app.use('/api/miniatures', miniatureRouter);
+app.use('/api/products', buildProductRouter());
+app.use('/api/miniatures', buildProductRouter('miniature'));
 app.use('/api/users', userRouter);
 app.use('/api/orders', orderRouter);
 
