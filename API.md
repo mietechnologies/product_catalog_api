@@ -41,6 +41,8 @@ Base URL: `http://localhost:<PORT>/api`
 - [22. Create Order](#22-create-order) — `POST /api/orders`
 - [23. Get Unfulfilled Orders](#23-get-unfulfilled-orders) — `GET /api/orders/unfulfilled` *(API Key or Admin JWT)*
 - [24. Get Order by ID](#24-get-order-by-id) — `GET /api/orders/:id` *(API Key or Admin JWT)*
+- [25. Get My Orders](#25-get-my-orders) — `GET /api/orders/mine` *(Bearer JWT)*
+- [26. Get My Order by ID](#26-get-my-order-by-id) — `GET /api/orders/mine/:id` *(Bearer JWT)*
 
 ---
 
@@ -1363,6 +1365,128 @@ Returns the full details of a single order by its MongoDB ObjectId.
 **Error Responses:**
 
 - **404 Not Found** — No order found with that ID.
+  ```json
+  {
+      "status": "fail",
+      "message": "No order found with that ID."
+  }
+  ```
+
+---
+
+### 25. Get My Orders
+
+**Method:** `GET`
+**Route:** `/api/orders/mine`
+**Authentication:** Bearer JWT
+
+**Use Case:**
+Returns the authenticated user's own orders, sorted newest first. Paginated. API keys are not linked to user accounts, so this endpoint always requires a Bearer token.
+
+**Query Parameters:**
+| Parameter | Default | Description |
+|---|---|---|
+| `page` | `1` | Page number. |
+| `limit` | `20` | Items per page. |
+
+**Success Response (200 OK):**
+```json
+{
+    "status": "success",
+    "page": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "data": {
+        "orders": [
+            {
+                "id": "507f1f77bcf86cd799439099",
+                "userId": "507f1f77bcf86cd799439011",
+                "name": "Smith's Game Shop",
+                "accountType": "retailer",
+                "items": [
+                    {
+                        "miniatureId": "507f1f77bcf86cd799439022",
+                        "productCode": "M-DR-0001",
+                        "quantity": 2,
+                        "unitCost": 22.00,
+                        "totalCost": 44.00
+                    }
+                ],
+                "totalOrderCost": 44.00,
+                "createdAt": "2026-04-17T00:00:00.000Z",
+                "invoicePaidDate": null,
+                "fulfillmentDate": null
+            }
+        ]
+    }
+}
+```
+
+**Error Responses:**
+
+- **401 Unauthorized** — No Bearer token provided (e.g. an API key was used instead).
+  ```json
+  {
+      "status": "fail",
+      "message": "This endpoint requires a Bearer token. API keys are not linked to user accounts."
+  }
+  ```
+
+---
+
+### 26. Get My Order by ID
+
+**Method:** `GET`
+**Route:** `/api/orders/mine/:id`
+**Authentication:** Bearer JWT
+
+**Use Case:**
+Returns the full details of a single order by its MongoDB ObjectId, scoped to the authenticated user — an order belonging to another user returns a 404 rather than leaking its existence.
+
+**URL Parameters:**
+| Parameter | Description |
+|---|---|
+| `id` | The MongoDB ObjectId of the order. |
+
+**Success Response (200 OK):**
+```json
+{
+    "status": "success",
+    "data": {
+        "order": {
+            "id": "507f1f77bcf86cd799439099",
+            "userId": "507f1f77bcf86cd799439011",
+            "name": "Smith's Game Shop",
+            "accountType": "retailer",
+            "items": [
+                {
+                    "miniatureId": "507f1f77bcf86cd799439022",
+                    "productCode": "M-DR-0001",
+                    "quantity": 2,
+                    "unitCost": 22.00,
+                    "totalCost": 44.00
+                }
+            ],
+            "totalOrderCost": 44.00,
+            "createdAt": "2026-04-17T00:00:00.000Z",
+            "invoicePaidDate": null,
+            "fulfillmentDate": null
+        }
+    }
+}
+```
+
+**Error Responses:**
+
+- **401 Unauthorized** — No Bearer token provided.
+  ```json
+  {
+      "status": "fail",
+      "message": "This endpoint requires a Bearer token. API keys are not linked to user accounts."
+  }
+  ```
+
+- **404 Not Found** — No order found with that ID for the authenticated user.
   ```json
   {
       "status": "fail",

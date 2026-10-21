@@ -81,6 +81,50 @@ exports.getOrderById = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.getMyOrders = catchAsync(async (req, res, next) => {
+    if (!req.user) {
+        return next(new AppError('This endpoint requires a Bearer token. API keys are not linked to user accounts.', 401));
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter = { userId: req.user._id };
+
+    const [orders, totalItems] = await Promise.all([
+        Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Order.countDocuments(filter)
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    res.status(200).json({
+        status: 'success',
+        page,
+        totalPages,
+        totalItems,
+        data: { orders }
+    });
+});
+
+exports.getMyOrderById = catchAsync(async (req, res, next) => {
+    if (!req.user) {
+        return next(new AppError('This endpoint requires a Bearer token. API keys are not linked to user accounts.', 401));
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
+
+    if (!order) {
+        return next(new AppError('No order found with that ID.', 404));
+    }
+
+    res.status(200).json({
+        status: 'success',
+        data: { order }
+    });
+});
+
 exports.getUnfulfilledOrders = catchAsync(async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
