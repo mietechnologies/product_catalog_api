@@ -787,11 +787,17 @@ Returns a paginated, flattened list of all variants sorted by product code. This
             "size": "Gargantuan",
             "category": "Dragon",
             "images": {},
+            "attribution": {
+                "creator": "Jane Sculptor",
+                "modelUrl": "https://www.example.com/models/ancient-red-dragon"
+            },
             "msrp": 45.00
         }
     ]
 }
 ```
+
+`attribution` is `null` when the miniature has no attribution (for example, in-house models).
 
 **Error Responses:**
 
@@ -835,6 +841,7 @@ Full-text search across miniature names, base names, and descriptions. Results a
             "category": "Dragon",
             "thumbnail": null,
             "images": {},
+            "attribution": null,
             "cost": 8.50,
             "wholesale": 22.00,
             "msrp": 45.00
@@ -880,6 +887,10 @@ Returns full details for a single variant identified by its product code.
     "images": {
         "0": "http://localhost:8001/uploads/M-DR-0001-1234567890.jpg"
     },
+    "attribution": {
+        "creator": "Jane Sculptor",
+        "modelUrl": "https://www.example.com/models/ancient-red-dragon"
+    },
     "cost": 8.50,
     "wholesale": 22.00,
     "msrp": 45.00
@@ -913,6 +924,10 @@ Creates a new miniature with one or more variants. Product codes are auto-genera
     "baseName": "Silver Dragon",
     "description": "A noble dragon with shimmering silver scales.",
     "category": "Dragon",
+    "attribution": {
+        "creator": "Jane Sculptor",
+        "modelUrl": "https://www.example.com/models/silver-dragon"
+    },
     "variants": [
         {
             "name": "Wyrmling",
@@ -939,6 +954,9 @@ Creates a new miniature with one or more variants. Product codes are auto-genera
 
 **Optional Fields:**
 - `description` — Top-level miniature description.
+- `attribution` — Credit for the 3D model's creator, shared by all variants. Omit it for in-house models.
+  - `attribution.creator` — Creator's name.
+  - `attribution.modelUrl` — Link to the 3D model. Must be an `http://` or `https://` URL.
 - `variants[].description`
 - `variants[].price.cost`
 - `variants[].price.wholesale`
@@ -948,7 +966,7 @@ Creates a new miniature with one or more variants. Product codes are auto-genera
 
 **Error Responses:**
 
-- **400 Bad Request** — Invalid category, invalid variant size, or empty variants array.
+- **400 Bad Request** — Invalid category, invalid variant size, empty variants array, or invalid attribution (e.g. a non-http(s) `modelUrl`).
   ```json
   {
       "status": "fail",
@@ -967,6 +985,8 @@ Creates a new miniature with one or more variants. Product codes are auto-genera
 **Use Case:**
 Updates one or more fields on a specific variant. Supports partial updates. The product code itself cannot be changed.
 
+`attribution` is the exception: it belongs to the parent miniature, so updating it through any variant's product code changes it for every variant. Sending `attribution` replaces the whole object; send `null` (or an object with only empty strings) to remove it.
+
 **URL Parameters:**
 | Parameter | Description |
 |---|---|
@@ -979,6 +999,10 @@ Updates one or more fields on a specific variant. Supports partial updates. The 
     "size": "Gargantuan",
     "fileName": "ancient_red_dragon_v2.stl",
     "thumbnail": "http://localhost:8001/uploads/thumb.jpg",
+    "attribution": {
+        "creator": "Jane Sculptor",
+        "modelUrl": "https://www.example.com/models/ancient-red-dragon"
+    },
     "price": {
         "cost": 9.00,
         "wholesale": 23.00,
@@ -997,7 +1021,7 @@ Updates one or more fields on a specific variant. Supports partial updates. The 
 
 **Error Responses:**
 
-- **400 Bad Request** — Invalid size value.
+- **400 Bad Request** — Invalid size value or invalid attribution.
   ```json
   {
       "status": "fail",
@@ -1062,6 +1086,7 @@ Adds a new variant to an existing miniature document. The new variant's product 
     "category": "Dragon",
     "thumbnail": null,
     "images": {},
+    "attribution": null,
     "cost": 6.00,
     "wholesale": 15.00,
     "msrp": 30.00

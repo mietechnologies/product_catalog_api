@@ -44,7 +44,7 @@ Router → (authenticateApiKey middleware) → Controller → Model → Response
 
 ### Data Model
 
-**Miniature** — `baseName`, `category` (enum validated against `miniCategoryAbbreviations` keys), `variants[]` (embedded subdocs with `name`, `size`, `productCode`, `fileName`, `images[]`, `thumbnail`, `price{cost, wholesale, msrp}`). Collection name: `Miniatures`.
+**Miniature** — `baseName`, `category` (enum validated against `miniCategoryAbbreviations` keys), optional `attribution{creator, modelUrl}` (shared by all variants; `modelUrl` must be http(s)), `variants[]` (embedded subdocs with `name`, `size`, `productCode`, `fileName`, `images[]`, `thumbnail`, `price{cost, wholesale, msrp}`). Collection name: `Miniatures`.
 
 **ApiKey** — `key` (unique hex string), `owner` (email or "master"), `isActive`, `createdAt`. Collection name: `ApiKeys`.
 
