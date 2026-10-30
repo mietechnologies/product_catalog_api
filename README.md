@@ -1,5 +1,15 @@
 # MieTech Product Catalog API
 
+> **Retired.** The product catalog now runs on the shared MieTech backend
+> ([mietechnologies_website_backend](https://github.com/mietechnologies/mietechnologies_website_backend)),
+> which stores it in PostgreSQL and uses the main site's admin login. See
+> `/api/catalog/products` and `/api/admin/catalog/products` in that repo's
+> `API_CONTRACT.md`. The catalog frontend is
+> [product_catalog_website](https://github.com/mietechnologies/product_catalog_website).
+> This repository is kept for reference only; retailer and order routes
+> (`/api/users/retailers...`, `/api/orders...`) have not been ported yet and can be
+> used as the reference when they are.
+
 A Node.js, Express, and MongoDB API for managing and cataloging 3D prints (tabletop miniatures with variant support, plus general prints like figurines, toys and decor organized into collections), image uploads, and pricing metadata. The application is containerized with Docker for portability and ease of deployment.
 
 ## Features

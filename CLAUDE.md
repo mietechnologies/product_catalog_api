@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
+**Retired (2026-10-30):** the catalog moved to `mietechnologies_website_backend` (FastAPI + PostgreSQL, shared admin login). Do new catalog work there; this repo is reference only, mainly for porting the retail (retailer + order) routes.
+
 MieTech Product Catalog API — a Node.js/Express 5/MongoDB REST API for managing a catalog of 3D-printed products (tabletop miniatures with variant support, plus general prints like figurines, toys and decor), image uploads, and pricing metadata. Dockerized with docker-compose (MongoDB + API).
 
 ## Commands
